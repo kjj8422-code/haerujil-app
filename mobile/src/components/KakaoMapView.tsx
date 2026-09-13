@@ -92,10 +92,27 @@ function buildHtml(
     };
   </script>
   <script
-    src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&autoload=false"
+    src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&libraries=clusterer&autoload=false"
     onerror="window.onerror('카카오맵 SDK 스크립트 로딩 실패(appkey 또는 네트워크 확인)')"
   ></script>
   <script>
+    // 색깔별로 동그란 마커 이미지를 SVG로 만들어 캐시해둔다 (같은 색은 한 번만 생성).
+    var markerImageCache = {};
+    function getMarkerImage(color) {
+      if (markerImageCache[color]) return markerImageCache[color];
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' +
+        '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>' +
+        '</svg>';
+      var src = 'data:image/svg+xml;base64,' + btoa(svg);
+      var image = new kakao.maps.MarkerImage(
+        src,
+        new kakao.maps.Size(22, 22),
+        { offset: new kakao.maps.Point(11, 11) }
+      );
+      markerImageCache[color] = image;
+      return image;
+    }
+
     try {
       if (typeof kakao === 'undefined') {
         window.onerror('kakao 객체 없음 — SDK 스크립트가 실행되지 않음');
@@ -107,30 +124,34 @@ function buildHtml(
               level: ${level},
             });
 
-            var markers = ${markersJson};
-            markers.forEach(function (m) {
-              var pos = new kakao.maps.LatLng(m.lat, m.lng);
-              var content = document.createElement('div');
-              content.style.width = '16px';
-              content.style.height = '16px';
-              content.style.borderRadius = '50%';
-              content.style.background = m.color;
-              content.style.border = '2px solid #0b2a3d';
-              content.style.boxShadow = '0 0 4px rgba(0,0,0,0.4)';
-              content.style.cursor = 'pointer';
-
-              var overlay = new kakao.maps.CustomOverlay({
-                position: pos,
-                content: content,
-                yAnchor: 0.5,
+            var markerData = ${markersJson};
+            var markers = markerData.map(function (m) {
+              var marker = new kakao.maps.Marker({
+                position: new kakao.maps.LatLng(m.lat, m.lng),
+                image: getMarkerImage(m.color),
               });
-              overlay.setMap(map);
-
-              content.addEventListener('click', function () {
+              kakao.maps.event.addListener(marker, 'click', function () {
                 if (window.ReactNativeWebView) {
                   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'marker', id: m.id }));
                 }
               });
+              return marker;
+            });
+
+            // 줌 아웃하면 가까운 마커들을 숫자 원(클러스터)으로 뭉쳐 보여주고,
+            // 그 원을 누르거나 확대하면 다시 개별 마커로 풀린다.
+            var clusterer = new kakao.maps.MarkerClusterer({
+              map: map,
+              markers: markers,
+              averageCenter: true,
+              minLevel: 7,
+              disableClickZoom: false,
+              styles: [{
+                width: '38px', height: '38px', lineHeight: '38px',
+                borderRadius: '19px', textAlign: 'center', fontWeight: 'bold',
+                color: '#fff', background: 'rgba(10,122,61,0.85)',
+                border: '2px solid #fff',
+              }],
             });
           } catch (err) {
             window.onerror('지도 생성 중 오류: ' + err.message);
