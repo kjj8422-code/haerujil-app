@@ -6,10 +6,24 @@ import { stripHtml } from "../utils/stripHtml";
 // 금어기 화면 맨 위에 붙는 "최근 법령 변경 이력" 접이식 박스. jeju-harbor-map의
 // 같은 섹션을 그대로 옮긴 것이라 항목이 3개뿐이지만, 법이 바뀔 때마다 자동으로 늘어난다.
 export default function LawChangesSection() {
-  const { changes, loading } = useLawChanges();
+  const { changes, loading, error } = useLawChanges();
   const [open, setOpen] = useState(false);
 
-  if (loading || changes.length === 0) return null;
+  if (loading) return null;
+
+  // 데이터가 진짜 없는 것과 "권한 거부 등으로 못 불러온 것"을 구분해서 보여준다 —
+  // 조용히 사라지면 Firestore 규칙이 안 맞아도 눈치채기 어렵다.
+  if (error) {
+    return (
+      <View style={[styles.container, { borderColor: "#e2483d" }]}>
+        <Text style={[styles.headerText, { color: "#e2483d" }]}>
+          ⚠️ 법령 변경 이력을 불러오지 못했습니다: {error}
+        </Text>
+      </View>
+    );
+  }
+
+  if (changes.length === 0) return null;
 
   return (
     <View style={styles.container}>
