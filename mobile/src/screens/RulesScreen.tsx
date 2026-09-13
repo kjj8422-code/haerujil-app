@@ -13,8 +13,6 @@ import { CATEGORY_LABEL, type Rule, useRules } from "../hooks/useRules";
 import { getSeasonStatus, type SeasonStatus } from "../utils/seasonStatus";
 import { stripHtml } from "../utils/stripHtml";
 
-const CATEGORIES = ["전체", ...Object.keys(CATEGORY_LABEL)];
-
 // 상태별로 "지금 당장 신경 써야 하는 순서"를 매긴다 — 위험한 것부터 위에 뜨게.
 function priority(status: SeasonStatus): number {
   switch (status.kind) {
@@ -86,10 +84,10 @@ function RuleCard({ rule, status }: { rule: Rule; status: SeasonStatus }) {
 }
 
 const STATUS_FILTERS = [
-  { key: "all", label: "전체" },
-  { key: "danger", label: "🔴 지금 위험" },
-  { key: "unknown", label: "❓ 확인필요" },
-  { key: "safe", label: "🟢 지금 가능" },
+  { key: "all", label: "전체", tint: "#f0f0f0", tintText: "#555" },
+  { key: "danger", label: "🔴 지금 위험", tint: "#fbe4e2", tintText: "#a8291f" },
+  { key: "unknown", label: "❓ 확인필요", tint: "#fff3d9", tintText: "#8a5a00" },
+  { key: "safe", label: "🟢 지금 가능", tint: "#e6f6ec", tintText: "#0a7a3d" },
 ] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number]["key"];
 
@@ -104,7 +102,6 @@ function matchesStatusFilter(status: SeasonStatus, filter: StatusFilter): boolea
 export default function RulesScreen() {
   const { rules, loading, error } = useRules();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("전체");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   // 오늘 날짜 기준 상태를 한 번만 계산해서 재사용한다 (검색/필터가 바뀔 때마다 다시
@@ -121,12 +118,11 @@ export default function RulesScreen() {
 
   const filtered = useMemo(() => {
     let list = withStatus;
-    if (category !== "전체") list = list.filter((x) => x.rule.category === category);
     if (statusFilter !== "all") list = list.filter((x) => matchesStatusFilter(x.status, statusFilter));
     const q = query.trim().toLowerCase();
     if (q) list = list.filter((x) => x.rule.species.toLowerCase().includes(q));
     return [...list].sort((a, b) => priority(a.status) - priority(b.status));
-  }, [withStatus, query, category, statusFilter]);
+  }, [withStatus, query, statusFilter]);
 
   const today = new Date();
   const todayLabel = `${today.getMonth() + 1}.${today.getDate()}`;
@@ -163,43 +159,27 @@ export default function RulesScreen() {
         autoCapitalize="none"
       />
 
-      <FlatList
-        horizontal
-        data={STATUS_FILTERS}
-        keyExtractor={(item) => item.key}
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipRow}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.chip, statusFilter === item.key && styles.chipActive]}
-            onPress={() => setStatusFilter(item.key)}
-          >
-            <Text style={[styles.chipLabel, statusFilter === item.key && styles.chipLabelActive]}>
-              {item.label}
-            </Text>
-          </Pressable>
-        )}
-      />
-
-      <FlatList
-        horizontal
-        data={CATEGORIES}
-        keyExtractor={(item) => item}
-        showsHorizontalScrollIndicator={false}
-        style={[styles.chipRow, { marginTop: 6 }]}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.chipSmall, category === item && styles.chipActive]}
-            onPress={() => setCategory(item)}
-          >
-            <Text style={[styles.chipLabelSmall, category === item && styles.chipLabelActive]}>
-              {item === "전체" ? "전체 분류" : CATEGORY_LABEL[item]}
-            </Text>
-          </Pressable>
-        )}
-      />
+      <View style={styles.statusChipRow}>
+        {STATUS_FILTERS.map((item) => {
+          const active = statusFilter === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              style={[
+                styles.statusChip,
+                { backgroundColor: active ? item.tintText : item.tint },
+              ]}
+              onPress={() => setStatusFilter(item.key)}
+            >
+              <Text
+                style={[styles.statusChipLabel, { color: active ? "#fff" : item.tintText }]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {loading && (
         <View style={styles.centerBox}>
@@ -253,23 +233,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
-  chipRow: { marginTop: 10, flexGrow: 0 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#f0f0f0",
+  statusChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
   },
-  chipSmall: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
-    backgroundColor: "#f5f5f5",
-  },
-  chipActive: { backgroundColor: "#0a7a3d" },
-  chipLabel: { fontSize: 13, color: "#555" },
-  chipLabelSmall: { fontSize: 11.5, color: "#777" },
-  chipLabelActive: { color: "#fff", fontWeight: "700" },
+  statusChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16 },
+  statusChipLabel: { fontSize: 12.5, fontWeight: "700" },
   centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 },
   meta: { fontSize: 13, color: "#888" },
   errorText: { color: "#c0392b", fontSize: 15, fontWeight: "600" },
