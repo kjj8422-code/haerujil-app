@@ -8,8 +8,8 @@ export type MapMarker = {
   lat: number;
   lng: number;
   title: string;
-  color: string; // 마커 색
-  shape?: "circle" | "triangle" | "square"; // 색이 같아도 모양으로 한 번 더 구분 (기본: circle)
+  color: string; // 마커 색(배경 원 색)
+  emoji?: string; // 원 안에 그릴 이모지 — 색이 같아도 카테고리를 귀엽게 한 번 더 구분 (기본: 이모지 없이 색 원만)
 };
 
 type Props = {
@@ -101,29 +101,26 @@ function buildHtml(
     onerror="window.onerror('카카오맵 SDK 스크립트 로딩 실패(appkey 또는 네트워크 확인)')"
   ></script>
   <script>
-    // 색깔+모양 조합별로 마커 이미지를 SVG로 만들어 캐시해둔다 — 색만으로는 구분이
-    // 애매할 수 있어서, 카테고리가 다르면 모양 자체를 다르게 해서 아이콘만 보고도
-    // 바로 구분되게 한다 (원=현재 시행중인 규정, 세모=시행 예정, 네모=기타).
+    // 색깔 원 안에 이모지를 넣어 마커를 만든다 — 색만으로는 구분이 애매할 수
+    // 있어서, 카테고리가 다르면 이모지 자체를 다르게 해서 귀엽고도 아이콘만
+    // 보고 바로 구분되게 한다. 이모지가 없는 마커는 그냥 색 원으로 그린다.
     var markerImageCache = {};
-    function shapeSvg(shape, color) {
-      if (shape === 'triangle') {
-        return '<polygon points="11,2 20,19 2,19" fill="' + color + '" stroke="#0b2a3d" stroke-width="2" stroke-linejoin="round"/>';
-      }
-      if (shape === 'square') {
-        return '<rect x="3" y="3" width="16" height="16" rx="3" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>';
-      }
-      return '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>';
+    function markerSvg(color, emoji) {
+      var circle = '<circle cx="14" cy="14" r="12" fill="' + color + '" stroke="#fff" stroke-width="2"/>';
+      if (!emoji) return circle;
+      var text =
+        '<text x="14" y="19" font-size="15" text-anchor="middle">' + emoji + '</text>';
+      return circle + text;
     }
-    function getMarkerImage(color, shape) {
-      shape = shape || 'circle';
-      var key = shape + '|' + color;
+    function getMarkerImage(color, emoji) {
+      var key = (emoji || '') + '|' + color;
       if (markerImageCache[key]) return markerImageCache[key];
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' + shapeSvg(shape, color) + '</svg>';
-      var src = 'data:image/svg+xml;base64,' + btoa(svg);
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28">' + markerSvg(color, emoji) + '</svg>';
+      var src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
       var image = new kakao.maps.MarkerImage(
         src,
-        new kakao.maps.Size(22, 22),
-        { offset: new kakao.maps.Point(11, 11) }
+        new kakao.maps.Size(28, 28),
+        { offset: new kakao.maps.Point(14, 14) }
       );
       markerImageCache[key] = image;
       return image;
@@ -152,7 +149,7 @@ function buildHtml(
             var markers = markerData.map(function (m) {
               var marker = new kakao.maps.Marker({
                 position: new kakao.maps.LatLng(m.lat, m.lng),
-                image: getMarkerImage(m.color, m.shape),
+                image: getMarkerImage(m.color, m.emoji),
               });
               kakao.maps.event.addListener(marker, 'click', function () {
                 if (window.ReactNativeWebView) {

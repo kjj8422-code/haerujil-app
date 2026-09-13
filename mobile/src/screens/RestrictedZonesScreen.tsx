@@ -13,10 +13,12 @@ import KakaoMapView, { type MapMarker } from "../components/KakaoMapView";
 import { type LeisureZone, useLeisureZones } from "../hooks/useLeisureZones";
 import { type NoEntryZone, useNoEntryZones } from "../hooks/useNoEntryZones";
 
-// 두 규정을 한 화면에서 같이 보여주되, 절대 섞여 보이지 않도록 모양(▲/●)과
-// 색을 분명히 다르게 쓴다.
-//   ▲ 세모, 청록/금색/빨강 = 제주 2027.4.22 "시행 예정"(어촌·어항법) — 아직 안 왔다
-//   ● 동그라미, 빨강/금색   = 전국 "지금 시행 중"(수상레저안전법, 해양경찰청)
+// 두 규정을 한 화면에서 같이 보여주되, 절대 섞여 보이지 않도록 이모지와
+// 색을 분명히 다르게 쓴다. 세모/동그라미보다 귀엽고 한눈에 뜻도 더 잘 통한다.
+//   ⏳ 청록/금색/빨강 = 제주 2027.4.22 "시행 예정"(어촌·어항법) — 아직 안 왔다
+//   🚫 빨강/금색      = 전국 "지금 시행 중"(수상레저안전법, 해양경찰청)
+const JEJU2027_EMOJI = "⏳";
+const LEISURE_NOW_EMOJI = "🚫";
 const JEJU_TYPE_COLOR: Record<string, string> = { national: "#e2483d", local: "#d9a441", village: "#6fb8b0" };
 function leisureColor(z: LeisureZone) {
   return z.bannedDevices.includes("모든") ? "#e2483d" : "#d9a441";
@@ -31,7 +33,7 @@ function Jeju2027Card({ zone }: { zone: NoEntryZone }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.categoryTag}>▲ 2027.4.22 시행 예정</Text>
+        <Text style={styles.categoryTag}>{JEJU2027_EMOJI} 2027.4.22 시행 예정</Text>
         <Text style={[styles.typeBadge, { color: JEJU_TYPE_COLOR[zone.type] ?? "#888" }]}>{zone.typeLabel}</Text>
       </View>
       <Text style={styles.placeName}>{zone.name}</Text>
@@ -52,7 +54,7 @@ function LeisureNowCard({ zone }: { zone: LeisureZone }) {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={[styles.categoryTag, { backgroundColor: "#fbe4e2", color: "#a8291f" }]}>
-          ● 지금 시행 중
+          {LEISURE_NOW_EMOJI} 지금 시행 중
         </Text>
         <Text style={styles.typeBadge2}>{zone.placeType}</Text>
       </View>
@@ -117,10 +119,10 @@ export default function RestrictedZonesScreen() {
       filtered.flatMap((r): MapMarker[] => {
         if (r.kind === "jeju2027") {
           if (r.zone.lat === null || r.zone.lng === null) return [];
-          return [{ id: r.id, lat: r.zone.lat, lng: r.zone.lng, title: r.name, color: JEJU_TYPE_COLOR[r.zone.type] ?? "#888", shape: "triangle" }];
+          return [{ id: r.id, lat: r.zone.lat, lng: r.zone.lng, title: r.name, color: JEJU_TYPE_COLOR[r.zone.type] ?? "#888", emoji: JEJU2027_EMOJI }];
         }
         if (r.zone.lat === null || r.zone.lng === null) return [];
-        return [{ id: r.id, lat: r.zone.lat, lng: r.zone.lng, title: r.name, color: leisureColor(r.zone), shape: "circle" }];
+        return [{ id: r.id, lat: r.zone.lat, lng: r.zone.lng, title: r.name, color: leisureColor(r.zone), emoji: LEISURE_NOW_EMOJI }];
       }),
     [filtered],
   );
@@ -142,8 +144,8 @@ export default function RestrictedZonesScreen() {
 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          <Text style={{ fontWeight: "700" }}>▲ 세모(청록/금/빨강)</Text> = 제주, 2027.4.22부터 시행 예정(어촌·어항법) · {" "}
-          <Text style={{ fontWeight: "700" }}>● 동그라미(빨강/금)</Text> = 전국, 지금 시행 중(수상레저안전법·해양경찰청).
+          <Text style={{ fontWeight: "700" }}>{JEJU2027_EMOJI} 모래시계(청록/금/빨강)</Text> = 제주, 2027.4.22부터 시행 예정(어촌·어항법) · {" "}
+          <Text style={{ fontWeight: "700" }}>{LEISURE_NOW_EMOJI} 금지 표시(빨강/금)</Text> = 전국, 지금 시행 중(수상레저안전법·해양경찰청).
           서로 다른 법이니 헷갈리지 마세요.
         </Text>
       </View>
@@ -151,8 +153,8 @@ export default function RestrictedZonesScreen() {
       <View style={styles.chipRow}>
         {([
           { key: "all", label: "전체" },
-          { key: "jeju2027", label: "▲ 제주예정" },
-          { key: "leisureNow", label: "● 전국현재" },
+          { key: "jeju2027", label: `${JEJU2027_EMOJI} 제주예정` },
+          { key: "leisureNow", label: `${LEISURE_NOW_EMOJI} 전국현재` },
         ] as const).map((c) => (
           <Pressable
             key={c.key}
