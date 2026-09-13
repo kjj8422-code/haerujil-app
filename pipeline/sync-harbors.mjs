@@ -34,13 +34,6 @@ function requireEnv(name, value) {
 requireEnv("ODCLOUD_SERVICE_KEY", ODCLOUD_SERVICE_KEY);
 requireEnv("FIREBASE_SERVICE_ACCOUNT", FIREBASE_SERVICE_ACCOUNT);
 
-// 디버깅용: 키 값 자체는 절대 로그에 남기지 않고, 길이와 앞/뒤 몇 글자만 확인한다.
-// (문제 해결되면 이 블록은 지울 예정)
-console.log(
-  `🔑 ODCLOUD_SERVICE_KEY 길이: ${ODCLOUD_SERVICE_KEY.length}자, ` +
-    `앞부분: ${ODCLOUD_SERVICE_KEY.slice(0, 6)}..., 뒷부분: ...${ODCLOUD_SERVICE_KEY.slice(-6)}`,
-);
-
 // ---------- 1. Firebase 초기화 ----------
 const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
