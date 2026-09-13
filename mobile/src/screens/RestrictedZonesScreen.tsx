@@ -150,6 +150,20 @@ export default function RestrictedZonesScreen() {
         </Text>
       </View>
 
+      {/* "금지구역"과 별개로 "허가필요수역(허가구역)"도 수상레저안전법상 전국
+          해양경찰서마다 관할구역별로 지정한다(제주 한림항이 대표적인 예) — 제주만의
+          제도가 아니다. 다만 이 고시들은 해양경찰서별로 따로따로 공고되어 있어
+          앱에 아직 전국 목록을 다 못 넣었으니, 이 목록에 없다고 자유롭게 이용
+          가능하다고 오해하지 않도록 분명히 경고해 둔다. */}
+      <View style={styles.warnBox}>
+        <Text style={styles.warnText}>
+          ⚠️ <Text style={{ fontWeight: "700" }}>이 목록에 없다고 안전한 건 아닙니다.</Text>{" "}
+          "허가필요수역(허가구역)"은 제주만이 아니라 전국 각 해양경찰서가 관할구역별로
+          따로 지정합니다(예: 한림항). 아직 앱에 전국 허가구역 데이터를 넣지 못했으니,
+          활동 전 관할 해양경찰서에 꼭 확인하세요.
+        </Text>
+      </View>
+
       <View style={styles.chipRow}>
         {([
           { key: "all", label: "전체" },
@@ -256,6 +270,16 @@ const styles = StyleSheet.create({
     borderColor: "#e2483d",
   },
   disclaimerText: { fontSize: 11.5, color: "#7a2b24", lineHeight: 16 },
+  warnBox: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(217,164,65,0.12)",
+    borderWidth: 1,
+    borderColor: "#d9a441",
+  },
+  warnText: { fontSize: 11.5, color: "#7a5a10", lineHeight: 16 },
   chipRow: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 10 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: "#f0f0f0" },
   chipActive: { backgroundColor: "#0a7a3d" },
