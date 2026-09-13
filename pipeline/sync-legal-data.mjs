@@ -96,7 +96,7 @@ async function main() {
   // "여기부터가 입수 금지구역입니다" 섹션 참고). 관할 해양경찰 연락처는 지역코드(r)로 매칭한다.
   const TYPE_LABEL = { national: "국가어항", local: "지방어항", village: "어촌정주어항" };
   const zonesBatch = db.batch();
-  for (const harbor of DATA) {
+  DATA.forEach((harbor, index) => {
     const guard = COAST_GUARD[harbor.r] ?? null;
     const ref = db.collection("jeju_no_entry_zones").doc(slugId(harbor.n));
     zonesBatch.set(
@@ -107,6 +107,9 @@ async function main() {
         type: harbor.t,
         typeLabel: TYPE_LABEL[harbor.t] ?? harbor.t,
         regionCode: harbor.r,
+        // DATA 배열 안에서의 원래 순서. 손그림 지도에서 해안선을 따라 항구를 배치할 때
+        // 이 순서를 그대로 써야 실제 위치 흐름과 맞는다 (jejuMapGeometry.ts 참고).
+        sortOrder: index,
         coastGuardOffice: guard?.office ?? null,
         coastGuardPhone: guard?.phone ?? null,
         effectiveDate: "2027-04-22",
@@ -116,7 +119,7 @@ async function main() {
       },
       { merge: true },
     );
-  }
+  });
   await zonesBatch.commit();
   console.log(`✅ jeju_no_entry_zones 컬렉션 ${DATA.length}건 저장 완료`);
 

@@ -8,6 +8,8 @@ export type NoEntryZone = {
   address: string;
   type: string;
   typeLabel: string;
+  regionCode: string;
+  sortOrder: number;
   effectiveDate: string;
   status: string;
   coastGuardOffice: string | null;
@@ -37,6 +39,8 @@ export function useNoEntryZones() {
             address: data.address ?? "",
             type: data.type ?? "",
             typeLabel: data.typeLabel ?? "미분류",
+            regionCode: data.regionCode ?? "",
+            sortOrder: typeof data.sortOrder === "number" ? data.sortOrder : 0,
             effectiveDate: data.effectiveDate ?? "-",
             status: data.status ?? "-",
             coastGuardOffice: data.coastGuardOffice ?? null,
