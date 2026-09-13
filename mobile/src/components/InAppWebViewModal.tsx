@@ -36,8 +36,10 @@ export default function InAppWebViewModal({ visible, url, title, onClose }: Prop
           <Text style={styles.headerTitle} numberOfLines={1}>
             {title}
           </Text>
+          {/* 회색 텍스트 하나뿐이던 예전 닫기 버튼이 눈에 잘 안 띈다는 피드백을 받아,
+              배경이 있는 동그란 X 버튼으로 바꿔서 "닫는 곳"이 한눈에 보이게 했다. */}
           <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-            <Text style={styles.closeText}>✕ 닫기</Text>
+            <Text style={styles.closeIcon}>✕</Text>
           </Pressable>
         </View>
 
@@ -70,6 +72,12 @@ export default function InAppWebViewModal({ visible, url, title, onClose }: Prop
                 <Text style={styles.errorText}>⚠️ {error}</Text>
               </View>
             )}
+            {/* 상단 헤더의 X와 별개로, 페이지 내용 위에도 항상 떠 있는 닫기 버튼을
+                하나 더 둔다 — 웹페이지가 스크롤되거나 헤더가 눈에 잘 안 띄는
+                상황에서도 어디서든 바로 닫을 수 있게 하기 위한 보험. */}
+            <Pressable onPress={onClose} hitSlop={12} style={styles.floatingCloseBtn}>
+              <Text style={styles.floatingCloseIcon}>✕</Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -89,8 +97,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
   },
   headerTitle: { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 12 },
-  closeBtn: { paddingVertical: 4, paddingHorizontal: 8 },
-  closeText: { fontSize: 13, color: "#888", fontWeight: "600" },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#eee",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeIcon: { fontSize: 18, fontWeight: "700", color: "#333", lineHeight: 20 },
   overlay: {
     position: "absolute",
     left: 0,
@@ -111,4 +126,21 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   errorText: { color: "#fff", fontSize: 12.5, lineHeight: 17 },
+  floatingCloseBtn: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(20,20,20,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 5,
+  },
+  floatingCloseIcon: { fontSize: 18, fontWeight: "700", color: "#fff", lineHeight: 20 },
 });

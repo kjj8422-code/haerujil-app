@@ -6,7 +6,7 @@ type Props = {
   onOpen: (url: string, title: string) => void;
 };
 
-// 항구·구역 카드 어디서나 재사용하는 "🎥 실시간 CCTV"/"🌊 물때·파고" 버튼 한 쌍.
+// 항구·구역 카드 어디서나 재사용하는 "📹 실시간 CCTV"/"🌊 물때·파고" 버튼 한 쌍.
 // 모달은 각 화면이 하나만 들고 있고(목록이 몇천 건이어도 카드마다 모달을 만들지
 // 않기 위해) 이 컴포넌트는 눌렸을 때 어떤 url/title을 열어야 하는지만 알려준다.
 export default function PlaceInfoButtons({ placeName, onOpen }: Props) {
@@ -14,9 +14,9 @@ export default function PlaceInfoButtons({ placeName, onOpen }: Props) {
     <View style={styles.row}>
       <Pressable
         style={styles.btn}
-        onPress={() => onOpen(buildCctvSearchUrl(placeName), `🎥 ${placeName} CCTV`)}
+        onPress={() => onOpen(buildCctvSearchUrl(placeName), `📹 ${placeName} CCTV`)}
       >
-        <Text style={styles.btnText}>🎥 실시간 CCTV</Text>
+        <Text style={styles.btnText}>📹 실시간 CCTV</Text>
       </Pressable>
       <Pressable
         style={[styles.btn, styles.btnTide]}
