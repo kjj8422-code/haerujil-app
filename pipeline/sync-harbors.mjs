@@ -15,8 +15,10 @@
 import { createHash } from "node:crypto";
 import admin from "firebase-admin";
 
-const ODCLOUD_SERVICE_KEY = process.env.ODCLOUD_SERVICE_KEY;
-const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT;
+// GitHub Secrets는 값을 복사-붙여넣기로 등록하는 과정에서 보이지 않는 줄바꿈/공백이
+// 앞뒤에 섞여 들어가는 경우가 흔하다. trim()으로 방어한다.
+const ODCLOUD_SERVICE_KEY = process.env.ODCLOUD_SERVICE_KEY?.trim();
+const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
 const PER_PAGE = 100; // 한 번에 몇 개씩 받아올지 (API 제공 최대치 확인 전이라 보수적으로 설정)
 const API_BASE =
   "https://api.odcloud.kr/api/3083027/v1/uddi:1951cefd-22ba-4573-b64c-e0f8a1af0a23_201909101333";
@@ -31,6 +33,13 @@ function requireEnv(name, value) {
 
 requireEnv("ODCLOUD_SERVICE_KEY", ODCLOUD_SERVICE_KEY);
 requireEnv("FIREBASE_SERVICE_ACCOUNT", FIREBASE_SERVICE_ACCOUNT);
+
+// 디버깅용: 키 값 자체는 절대 로그에 남기지 않고, 길이와 앞/뒤 몇 글자만 확인한다.
+// (문제 해결되면 이 블록은 지울 예정)
+console.log(
+  `🔑 ODCLOUD_SERVICE_KEY 길이: ${ODCLOUD_SERVICE_KEY.length}자, ` +
+    `앞부분: ${ODCLOUD_SERVICE_KEY.slice(0, 6)}..., 뒷부분: ...${ODCLOUD_SERVICE_KEY.slice(-6)}`,
+);
 
 // ---------- 1. Firebase 초기화 ----------
 const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
