@@ -10,17 +10,42 @@
 // 다음에 실행될 때(자동 스케줄 또는 수동 실행) 앱 쪽 데이터도 자동으로 최신화된다 —
 // 앱 스토어 재배포 없이 "실시간 업데이트"가 이뤄지는 구조.
 //
-// 필요 환경변수: FIREBASE_SERVICE_ACCOUNT (GitHub Actions Secrets로 주입)
+// 필요 환경변수: FIREBASE_SERVICE_ACCOUNT, KAKAO_REST_KEY (GitHub Actions Secrets로 주입)
 
 import admin from "firebase-admin";
 
 const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+const KAKAO_REST_KEY = process.env.KAKAO_REST_KEY?.trim();
 const JEJU_SITE_RAW_URL =
   "https://raw.githubusercontent.com/kjj8422-code/jeju-harbor-map/main/index.html";
 
 if (!FIREBASE_SERVICE_ACCOUNT) {
   console.error("❌ 환경변수 FIREBASE_SERVICE_ACCOUNT가 설정되지 않았습니다.");
   process.exit(1);
+}
+if (!KAKAO_REST_KEY) {
+  console.error("❌ 환경변수 KAKAO_REST_KEY가 설정되지 않았습니다.");
+  process.exit(1);
+}
+
+// 제주 입수금지구역 69곳은 주소만 있고 위도/경도가 없어서, 카카오 로컬 API로
+// 주소를 좌표로 변환(지오코딩)한다. 실패해도 스크립트 전체가 죽지 않고 그 항구만
+// lat/lng 없이 넘어간다(지도에는 안 찍히지만 목록에는 계속 나온다).
+async function geocodeAddress(address) {
+  const url = new URL("https://dapi.kakao.com/v2/local/search/address.json");
+  url.searchParams.set("query", address);
+  const res = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } });
+  if (!res.ok) {
+    console.warn(`  ⚠️ 지오코딩 HTTP 오류(${res.status}): ${address}`);
+    return null;
+  }
+  const data = await res.json();
+  const doc = data.documents?.[0];
+  if (!doc) {
+    console.warn(`  ⚠️ 지오코딩 결과 없음: ${address}`);
+    return null;
+  }
+  return { lat: Number(doc.y), lng: Number(doc.x) };
 }
 
 admin.initializeApp({
@@ -95,9 +120,16 @@ async function main() {
   // DATA에 있는 69곳 전부가 2027.4.22부터 입수 금지구역이 되는 대상이다 (jeju-harbor-map
   // "여기부터가 입수 금지구역입니다" 섹션 참고). 관할 해양경찰 연락처는 지역코드(r)로 매칭한다.
   const TYPE_LABEL = { national: "국가어항", local: "지방어항", village: "어촌정주어항" };
+  console.log(`  주소 → 좌표 변환(지오코딩) 중... (${DATA.length}건, 시간이 좀 걸립니다)`);
   const zonesBatch = db.batch();
-  DATA.forEach((harbor, index) => {
+  let geocoded = 0;
+  for (let index = 0; index < DATA.length; index++) {
+    const harbor = DATA[index];
     const guard = COAST_GUARD[harbor.r] ?? null;
+    const coords = await geocodeAddress(harbor.a);
+    if (coords) geocoded++;
+    await new Promise((resolve) => setTimeout(resolve, 120)); // 카카오 API에 너무 빠르게 연타하지 않도록
+
     const ref = db.collection("jeju_no_entry_zones").doc(slugId(harbor.n));
     zonesBatch.set(
       ref,
@@ -110,6 +142,8 @@ async function main() {
         // DATA 배열 안에서의 원래 순서. 손그림 지도에서 해안선을 따라 항구를 배치할 때
         // 이 순서를 그대로 써야 실제 위치 흐름과 맞는다 (jejuMapGeometry.ts 참고).
         sortOrder: index,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
         coastGuardOffice: guard?.office ?? null,
         coastGuardPhone: guard?.phone ?? null,
         effectiveDate: "2027-04-22",
@@ -119,9 +153,9 @@ async function main() {
       },
       { merge: true },
     );
-  });
+  }
   await zonesBatch.commit();
-  console.log(`✅ jeju_no_entry_zones 컬렉션 ${DATA.length}건 저장 완료`);
+  console.log(`✅ jeju_no_entry_zones 컬렉션 ${DATA.length}건 저장 완료 (좌표 확보 ${geocoded}/${DATA.length}건)`);
 
   // ---------- 3. 최근 법령 변경 이력 (law_changes 컬렉션) ----------
   const changesBatch = db.batch();

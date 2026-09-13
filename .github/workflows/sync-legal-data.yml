@@ -24,4 +24,5 @@ jobs:
         working-directory: pipeline
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
         run: node sync-legal-data.mjs

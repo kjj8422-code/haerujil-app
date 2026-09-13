@@ -5,7 +5,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth } from "./src/firebase";
 import HarborListScreen from "./src/screens/HarborListScreen";
-import KakaoMapTestScreen from "./src/screens/KakaoMapTestScreen";
+import HarborMapScreen from "./src/screens/HarborMapScreen";
 import RulesScreen from "./src/screens/RulesScreen";
 import NoEntryZoneScreen from "./src/screens/NoEntryZoneScreen";
 import SafetyOrgsScreen from "./src/screens/SafetyOrgsScreen";
@@ -15,8 +15,7 @@ const TABS = [
   { key: "zones", label: "🚫 금지구역", Screen: NoEntryZoneScreen },
   { key: "safety", label: "🛟 안전요원", Screen: SafetyOrgsScreen },
   { key: "list", label: "📋 항구목록", Screen: HarborListScreen },
-  // TODO: 카카오맵 연동 확인되면 실제 항구 데이터를 보여주는 화면으로 교체
-  { key: "map", label: "🗺️ 지도(테스트)", Screen: KakaoMapTestScreen },
+  { key: "map", label: "🗺️ 지도", Screen: HarborMapScreen },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];

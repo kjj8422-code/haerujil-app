@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import JejuSchematicMap from "../components/JejuSchematicMap";
+import KakaoMapView, { type MapMarker } from "../components/KakaoMapView";
 import { type NoEntryZone, useNoEntryZones } from "../hooks/useNoEntryZones";
 
 const TYPE_COLOR: Record<string, string> = {
@@ -84,10 +84,20 @@ export default function NoEntryZoneScreen() {
     );
   }, [zones, query]);
 
-  const visibleIds = useMemo(
-    () => (query.trim() ? new Set(filtered.map((z) => z.id)) : null),
-    [filtered, query],
+  const markers: MapMarker[] = useMemo(
+    () =>
+      filtered
+        .filter((z) => z.lat !== null && z.lng !== null)
+        .map((z) => ({
+          id: z.id,
+          lat: z.lat as number,
+          lng: z.lng as number,
+          title: z.name,
+          color: TYPE_COLOR[z.type] ?? "#888",
+        })),
+    [filtered],
   );
+  const geocodedCount = zones.filter((z) => z.lat !== null).length;
 
   return (
     <View style={styles.container}>
@@ -153,12 +163,17 @@ export default function NoEntryZoneScreen() {
       {!loading && !error && viewMode === "map" && (
         <ScrollView contentContainerStyle={styles.mapScrollContent}>
           <Legend />
+          {geocodedCount < zones.length && (
+            <Text style={styles.mapHint}>
+              좌표 확보 {geocodedCount}/{zones.length}곳 — 나머지는 목록에서 확인하세요
+            </Text>
+          )}
           <View style={styles.mapCard}>
-            <JejuSchematicMap
-              zones={zones}
-              visibleIds={visibleIds}
-              selectedId={selected?.id ?? null}
-              onSelect={setSelected}
+            <KakaoMapView
+              markers={markers}
+              center={{ lat: 33.38, lng: 126.55 }}
+              level={10}
+              onMarkerPress={(id) => setSelected(zones.find((z) => z.id === id) ?? null)}
             />
           </View>
           {selected ? (
@@ -225,6 +240,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, gap: 10 },
   mapScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, gap: 10 },
   mapCard: {
+    height: 380,
     borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,

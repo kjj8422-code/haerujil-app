@@ -74,6 +74,9 @@ jeju_no_entry_zones/{harborName}
 ├─ type: string             // "national" | "local" | "village"
 ├─ typeLabel: string        // "국가어항" | "지방어항" | "어촌정주어항"
 ├─ regionCode: string       // "chuja" 등 — COAST_GUARD 매칭용 지역 코드
+├─ sortOrder: number        // DATA 배열 안 원래 순서
+├─ lat: number | null       // 카카오 로컬 API로 주소를 지오코딩해서 채움 (실패하면 null)
+├─ lng: number | null
 ├─ coastGuardOffice: string | null
 ├─ coastGuardPhone: string | null
 ├─ effectiveDate: string    // "2027-04-22"
@@ -122,6 +125,30 @@ safety_orgs/{recognitionNo}
   자동으로 반영된다** — 앱 스토어 재배포가 필요 없다.
 - 한계: 지금은 **제주 데이터만** 있음(입수금지구역 69곳은 애초에 제주 한정 규정). 다른
   지역의 유사 규정이 생기면 그때 같은 방식으로 추가.
+- `jeju_no_entry_zones`는 주소만 있고 좌표가 없어서, 카카오 로컬 API(주소 검색)로
+  지오코딩해 lat/lng을 채운다 — `KAKAO_REST_KEY` 시크릿 필요 (2026-09-13 추가).
+
+## 지도 렌더링 (2026-09-13, 카카오맵으로 교체)
+
+처음엔 `react-native-maps`(구글맵)로 시도했으나, **Expo Go에서는 안드로이드 구글맵
+타일이 API 키 없이는 안 보이고, 그 키는 Expo Go가 아닌 커스텀 개발 빌드(EAS Build)
+에서만 적용된다는 한계**에 부딪혔다. 대신 `react-native-webview` 안에서 **카카오맵
+JavaScript SDK**를 그대로 돌리는 방식으로 교체했다 — Expo Go에서 별도 빌드 없이 바로
+된다. `mobile/src/components/KakaoMapView.tsx`가 이 로직을 담당하고, `harbors`(전국
+113곳)와 `jeju_no_entry_zones`(제주 69곳) 화면 둘 다 여기서 재사용한다.
+
+**카카오 개발자 콘솔 설정 (한 번만 하면 됨)**:
+1. developers.kakao.com에서 앱 생성 → "플랫폼 키"에서 JavaScript 키, REST API 키 확인
+2. JavaScript 키 상세 설정의 "JavaScript SDK 도메인"에 `http://localhost` 등록
+   (`KakaoMapView`가 WebView `baseUrl`을 이 값으로 고정해서 로드하기 때문 — 실제
+   웹사이트가 아니라 앱 내부에서만 쓰는 값이라 이 문자열 그대로 등록하면 됨)
+3. 왼쪽 메뉴 "카카오맵"에서 사용 설정을 ON으로 켜기 (무료 쿼터 자동 제공)
+4. JavaScript 키는 `mobile/src/kakaoConfig.ts`에, REST API 키는 GitHub Secret
+   `KAKAO_REST_KEY`에 저장 (지오코딩용, 파이프라인 전용이라 앱에는 안 들어감)
+
+제주 스타일 손그림 SVG 개략도(`jejuMapGeometry.ts`/`JejuSchematicMap.tsx`)는 실제
+카카오맵으로 대체되면서 삭제했다 — 위경도만 있으면 실제 지도가 훨씬 정확하고
+사용자가 원한 "네이버맵·구글맵 같은" 경험에 더 가깝기 때문.
 
 ### 3. `board_posts` (조과자랑 게시판) — 구글 폼 대신 앱 내 정식 기능으로
 
