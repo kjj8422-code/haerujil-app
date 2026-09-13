@@ -1,8 +1,10 @@
-// 법적 준수 정보(금어기·금지체장, 제주 입수금지구역) 동기화 스크립트
+// 법적 준수 정보(금어기·금지체장, 제주 입수금지구역, 최근 법령 변경, 안전관리요원
+// 인정단체) 동기화 스크립트
 //
 // jeju-harbor-map(https://github.com/kjj8422-code/jeju-harbor-map) 저장소의 index.html에
-// 이미 사람이 직접 검증해둔 법령 데이터(RULES, DATA, COAST_GUARD)가 있다. 그 데이터를
-// 새로 베껴 적는 대신, index.html 원본을 그대로 읽어와 파싱해서 Firestore에 반영한다.
+// 이미 사람이 직접 검증해둔 법령 데이터(RULES, DATA, COAST_GUARD, LAW_CHANGES, ORGS)가
+// 있다. 그 데이터를 새로 베껴 적는 대신, index.html 원본을 그대로 읽어와 파싱해서
+// Firestore에 반영한다.
 //
 // 이렇게 하면 jeju-harbor-map 쪽에서 법이 바뀌어 값을 고치고 git push하면, 이 스크립트가
 // 다음에 실행될 때(자동 스케줄 또는 수동 실행) 앱 쪽 데이터도 자동으로 최신화된다 —
@@ -59,7 +61,12 @@ async function main() {
   const RULES = extractConst(html, "RULES", "[", "]");
   const DATA = extractConst(html, "DATA", "[", "]");
   const COAST_GUARD = extractConst(html, "COAST_GUARD", "{", "}");
-  console.log(`  RULES ${RULES.length}건, DATA ${DATA.length}건, COAST_GUARD ${Object.keys(COAST_GUARD).length}개 지역 확인`);
+  const LAW_CHANGES = extractConst(html, "LAW_CHANGES", "[", "]");
+  const ORGS = extractConst(html, "ORGS", "[", "]");
+  console.log(
+    `  RULES ${RULES.length}건, DATA ${DATA.length}건, COAST_GUARD ${Object.keys(COAST_GUARD).length}개 지역, ` +
+      `LAW_CHANGES ${LAW_CHANGES.length}건, ORGS ${ORGS.length}건 확인`,
+  );
 
   // ---------- 1. 금어기·금지체장 (rules 컬렉션) ----------
   const rulesBatch = db.batch();
@@ -112,6 +119,52 @@ async function main() {
   }
   await zonesBatch.commit();
   console.log(`✅ jeju_no_entry_zones 컬렉션 ${DATA.length}건 저장 완료`);
+
+  // ---------- 3. 최근 법령 변경 이력 (law_changes 컬렉션) ----------
+  const changesBatch = db.batch();
+  for (const c of LAW_CHANGES) {
+    const ref = db.collection("law_changes").doc(slugId(`${c.effective}_${c.title}`));
+    changesBatch.set(
+      ref,
+      {
+        effective: c.effective,
+        status: c.status,
+        scope: c.scope,
+        title: c.title,
+        before: c.before ?? null,
+        after: c.after ?? null,
+        note: c.note ?? null,
+        source: c.source ?? null,
+        sourceUrl: c.sourceUrl ?? null,
+        species: c.species ?? [],
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+  await changesBatch.commit();
+  console.log(`✅ law_changes 컬렉션 ${LAW_CHANGES.length}건 저장 완료`);
+
+  // ---------- 4. 야간 해루질 안전관리요원 인정단체 (safety_orgs 컬렉션) ----------
+  // 야간 수중레저활동은 법적으로 RESCUE급 이상 자격의 안전관리요원 배치가 필요하며,
+  // 그 자격을 인정하는 단체 목록이다 (해양수산부 인정단체 고시 기준).
+  const orgsBatch = db.batch();
+  for (const o of ORGS) {
+    const ref = db.collection("safety_orgs").doc(slugId(o.no));
+    orgsBatch.set(
+      ref,
+      {
+        recognitionNo: o.no,
+        name: o.name,
+        certs: o.certs,
+        source: "해양수산부 수중레저교육자 교육 인정단체 고시",
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+  await orgsBatch.commit();
+  console.log(`✅ safety_orgs 컬렉션 ${ORGS.length}건 저장 완료`);
 
   console.log("🎉 법령 데이터 동기화 완료");
 }

@@ -82,7 +82,35 @@ jeju_no_entry_zones/{harborName}
 └─ syncedAt: timestamp
 ```
 
-**"실시간 업데이트" 구조 (2026-09-13 구축)**: 이 두 컬렉션은 새 공공데이터를 새로 조사하는
+### 2-2. `law_changes` (최근 법령 변경 이력) — 자동 동기화
+
+```
+law_changes/{changeId}
+├─ effective: string       // "2027-04-22"
+├─ status: string          // "시행중" | "시행 예정"
+├─ scope: string           // "금어기·금지체장" 등
+├─ title: string
+├─ before: string | null
+├─ after: string | null
+├─ note: string | null
+├─ source: string | null
+├─ sourceUrl: string | null
+├─ species: string[]       // 표에 🆕 뱃지를 붙일 품종(있는 경우)
+└─ syncedAt: timestamp
+```
+
+### 2-3. `safety_orgs` (야간 해루질 안전관리요원 인정단체, 50곳) — 자동 동기화
+
+```
+safety_orgs/{recognitionNo}
+├─ recognitionNo: string   // "2017-1"
+├─ name: string
+├─ certs: string           // 인정되는 자격증 등급 설명
+└─ syncedAt: timestamp
+```
+
+**"실시간 업데이트" 구조 (2026-09-13 구축, 2026-09-13 RULES/DATA에 이어 LAW_CHANGES/ORGS로 확장)**:
+이 네 컬렉션(rules, jeju_no_entry_zones, law_changes, safety_orgs)은 새 공공데이터를 새로 조사하는
 대신, 이미 사람이 검증해둔 `jeju-harbor-map` 저장소의 `index.html`(RULES/DATA/COAST_GUARD
 배열)을 원본 그대로 가져와 파싱한다. 방법:
 

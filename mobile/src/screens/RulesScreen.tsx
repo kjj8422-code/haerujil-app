@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import LawChangesSection from "../components/LawChangesSection";
 import { CATEGORY_LABEL, type Rule, useRules } from "../hooks/useRules";
 import { stripHtml } from "../utils/stripHtml";
 
@@ -60,6 +61,8 @@ export default function RulesScreen() {
         <Text style={styles.title}>🐟 금어기·금지체장</Text>
         {!loading && !error && <Text style={styles.subtitle}>총 {rules.length}종</Text>}
       </View>
+
+      <LawChangesSection />
 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
