@@ -8,7 +8,8 @@ export type MapMarker = {
   lat: number;
   lng: number;
   title: string;
-  color: string; // 마커 색 (핀 대신 색깔 원으로 표시)
+  color: string; // 마커 색
+  shape?: "circle" | "triangle" | "square"; // 색이 같아도 모양으로 한 번 더 구분 (기본: circle)
 };
 
 type Props = {
@@ -44,6 +45,10 @@ export default function KakaoMapView({ markers, center, level = 10, onMarkerPres
         style={styles.webview}
         javaScriptEnabled
         domStorageEnabled
+        // 지도 가장자리에서 통통 튀는 느낌(오버스크롤)과, 지도를 감싼 화면을
+        // 실수로 함께 스크롤시키는 것을 막아서 확대·이동이 더 안정적으로 느껴지게 한다.
+        bounces={false}
+        overScrollMode="never"
         onMessage={handleMessage}
         onError={(e) => setWebViewError(e.nativeEvent.description ?? "알 수 없는 오류")}
         onHttpError={(e) =>
@@ -96,20 +101,31 @@ function buildHtml(
     onerror="window.onerror('카카오맵 SDK 스크립트 로딩 실패(appkey 또는 네트워크 확인)')"
   ></script>
   <script>
-    // 색깔별로 동그란 마커 이미지를 SVG로 만들어 캐시해둔다 (같은 색은 한 번만 생성).
+    // 색깔+모양 조합별로 마커 이미지를 SVG로 만들어 캐시해둔다 — 색만으로는 구분이
+    // 애매할 수 있어서, 카테고리가 다르면 모양 자체를 다르게 해서 아이콘만 보고도
+    // 바로 구분되게 한다 (원=현재 시행중인 규정, 세모=시행 예정, 네모=기타).
     var markerImageCache = {};
-    function getMarkerImage(color) {
-      if (markerImageCache[color]) return markerImageCache[color];
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' +
-        '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>' +
-        '</svg>';
+    function shapeSvg(shape, color) {
+      if (shape === 'triangle') {
+        return '<polygon points="11,2 20,19 2,19" fill="' + color + '" stroke="#0b2a3d" stroke-width="2" stroke-linejoin="round"/>';
+      }
+      if (shape === 'square') {
+        return '<rect x="3" y="3" width="16" height="16" rx="3" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>';
+      }
+      return '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0b2a3d" stroke-width="2"/>';
+    }
+    function getMarkerImage(color, shape) {
+      shape = shape || 'circle';
+      var key = shape + '|' + color;
+      if (markerImageCache[key]) return markerImageCache[key];
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' + shapeSvg(shape, color) + '</svg>';
       var src = 'data:image/svg+xml;base64,' + btoa(svg);
       var image = new kakao.maps.MarkerImage(
         src,
         new kakao.maps.Size(22, 22),
         { offset: new kakao.maps.Point(11, 11) }
       );
-      markerImageCache[color] = image;
+      markerImageCache[key] = image;
       return image;
     }
 
@@ -122,13 +138,21 @@ function buildHtml(
             var map = new kakao.maps.Map(document.getElementById('map'), {
               center: new kakao.maps.LatLng(${centerLat}, ${centerLng}),
               level: ${level},
+              draggable: true,
+              zoomable: true,
             });
+
+            // 손가락 두 개로 확대/축소하는 핀치 제스처는 화면(웹뷰) 자체 확대와
+            // 지도 SDK 확대가 동시에 반응해서 "튀는" 느낌을 준다. 대신 +/- 버튼으로
+            // 한 단계씩 또렷하게 확대/축소할 수 있게 해서 네이버·구글 지도처럼
+            // 더 편하고 예측 가능하게 만든다. 핀치 줌 자체는 그대로 둔다(취향껏 사용).
+            map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
 
             var markerData = ${markersJson};
             var markers = markerData.map(function (m) {
               var marker = new kakao.maps.Marker({
                 position: new kakao.maps.LatLng(m.lat, m.lng),
-                image: getMarkerImage(m.color),
+                image: getMarkerImage(m.color, m.shape),
               });
               kakao.maps.event.addListener(marker, 'click', function () {
                 if (window.ReactNativeWebView) {

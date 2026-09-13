@@ -7,14 +7,12 @@ import { auth } from "./src/firebase";
 import HarborListScreen from "./src/screens/HarborListScreen";
 import HarborMapScreen from "./src/screens/HarborMapScreen";
 import RulesScreen from "./src/screens/RulesScreen";
-import NoEntryZoneScreen from "./src/screens/NoEntryZoneScreen";
-import LeisureZonesScreen from "./src/screens/LeisureZonesScreen";
+import RestrictedZonesScreen from "./src/screens/RestrictedZonesScreen";
 import SafetyOrgsScreen from "./src/screens/SafetyOrgsScreen";
 
 const TABS = [
   { key: "rules", label: "🐟 금어기", Screen: RulesScreen },
-  { key: "zones", label: "🚫 제주금지", Screen: NoEntryZoneScreen },
-  { key: "leisure", label: "🏖️ 레저금지", Screen: LeisureZonesScreen },
+  { key: "restricted", label: "🚫 금지구역", Screen: RestrictedZonesScreen },
   { key: "safety", label: "🛟 안전요원", Screen: SafetyOrgsScreen },
   { key: "list", label: "📋 항구", Screen: HarborListScreen },
   { key: "map", label: "🗺️ 지도", Screen: HarborMapScreen },
@@ -88,6 +86,6 @@ const styles = StyleSheet.create({
   },
   tabBtn: { flex: 1, paddingVertical: 6, alignItems: "center" },
   tabBtnActive: { borderTopWidth: 2, borderTopColor: "#0a7a3d", marginTop: -9 },
-  tabLabel: { fontSize: 9, color: "#888" },
+  tabLabel: { fontSize: 10.5, color: "#888" },
   tabLabelActive: { color: "#0a7a3d", fontWeight: "700" },
 });
