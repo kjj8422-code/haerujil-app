@@ -24,8 +24,6 @@ harbors/{harborId}
 ├─ lng: number             // 경도 (API의 "경도", 문자열 → 숫자 변환)
 ├─ fishingHouseholds: number | null   // 어업가구 (API "어업가구")
 ├─ totalPopulation: number | null     // 전체인구 (API "전체인구")
-├─ coastGuardContact: string | null   // 관할 해양경찰 연락처 (사람이 직접 채움)
-├─ noEntryZone: boolean    // 입수 금지구역 여부 (사람이 직접 확인 후 채움 — 법령 해석 필요)
 ├─ source: string          // "data.go.kr 해양수산부_어항정보(3083027)"
 └─ syncedAt: timestamp     // 우리 쪽 마지막 동기화 시각
 ```
@@ -52,17 +50,50 @@ harbors/{harborId}
   스크래핑 또는 수동 보강이 필요할 수 있음). 지금 113곳은 "핵심 대형 항구 위주 1차
   MVP"로 취급한다.
 
-### 2. `rules` (금어기·금지체장) — 당분간은 사람이 직접 입력 (전국 공통 + 지역 특례)
+### 2. `rules` (금어기·금지체장) — jeju-harbor-map에서 자동 동기화 (사람이 직접 입력 안 함)
 
 ```
-rules/{speciesId}
-├─ species: string         // "전복"
-├─ banPeriod: string       // 금어기
-├─ minSize: string         // 금지체장
-├─ regionException: array  // [{region:"제주", note:"..."}]  — jeju-harbor-map의 "제주만 다른 기준" 그대로 이식
-├─ source: string
-└─ sourceUrl: string
+rules/{species}
+├─ species: string         // "전복류"
+├─ banPeriod: string       // 금어기 (예: "9.1~10.31 (제주는 10.1~12.31)")
+├─ minSize: string         // 금지체장 (예: "7cm (제주 10cm)")
+├─ category: string        // "fish" | "cephalopod" | "crustacean" | "shellfish" | "seaweed" | "other"
+├─ jejuSpecific: boolean   // 제주만 다른 기준이 있는 품종인지
+├─ note: string | null     // 유예 조건 등 부연설명 (HTML 태그 포함될 수 있음)
+├─ lastChanged: string | null  // 최근 법령 변경일 (있는 경우)
+├─ source: string          // "jeju-harbor-map RULES"
+└─ syncedAt: timestamp
 ```
+
+### 2-1. `jeju_no_entry_zones` (제주 입수금지구역, 2027.4.22 시행 예정) — 역시 자동 동기화
+
+```
+jeju_no_entry_zones/{harborName}
+├─ name: string             // "신양항"
+├─ address: string
+├─ type: string             // "national" | "local" | "village"
+├─ typeLabel: string        // "국가어항" | "지방어항" | "어촌정주어항"
+├─ regionCode: string       // "chuja" 등 — COAST_GUARD 매칭용 지역 코드
+├─ coastGuardOffice: string | null
+├─ coastGuardPhone: string | null
+├─ effectiveDate: string    // "2027-04-22"
+├─ status: string           // "시행 예정"
+├─ source: string           // "jeju-harbor-map DATA + COAST_GUARD"
+└─ syncedAt: timestamp
+```
+
+**"실시간 업데이트" 구조 (2026-09-13 구축)**: 이 두 컬렉션은 새 공공데이터를 새로 조사하는
+대신, 이미 사람이 검증해둔 `jeju-harbor-map` 저장소의 `index.html`(RULES/DATA/COAST_GUARD
+배열)을 원본 그대로 가져와 파싱한다. 방법:
+
+- `pipeline/sync-legal-data.mjs`가 `https://raw.githubusercontent.com/kjj8422-code/
+  jeju-harbor-map/main/index.html`을 그대로 fetch → 텍스트에서 `const RULES = [...]` 같은
+  블록을 잘라내 JS 값으로 변환 → Firestore에 반영.
+- `.github/workflows/sync-legal-data.yml`이 매일 자동 실행 (harbors 동기화 직후).
+- 즉, **`jeju-harbor-map`에서 법이 바뀌어 값을 고치고 git push하면, 다음날 이 앱에도
+  자동으로 반영된다** — 앱 스토어 재배포가 필요 없다.
+- 한계: 지금은 **제주 데이터만** 있음(입수금지구역 69곳은 애초에 제주 한정 규정). 다른
+  지역의 유사 규정이 생기면 그때 같은 방식으로 추가.
 
 ### 3. `board_posts` (조과자랑 게시판) — 구글 폼 대신 앱 내 정식 기능으로
 
