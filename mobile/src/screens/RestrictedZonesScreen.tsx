@@ -19,12 +19,29 @@ import { usePlaceInfoModal } from "../hooks/usePlaceInfoModal";
 // 두 규정을 한 화면에서 같이 보여주되, 절대 섞여 보이지 않도록 이모지와
 // 색을 분명히 다르게 쓴다. 세모/동그라미보다 귀엽고 한눈에 뜻도 더 잘 통한다.
 //   ⏳ 청록/금색/빨강 = 제주 2027.4.22 "시행 예정"(어촌·어항법) — 아직 안 왔다
-//   🚫 빨강/금색      = 전국 "지금 시행 중"(수상레저안전법, 해양경찰청)
+//   🚫 빨강         = 전국 "지금 시행 중"(수상레저안전법, 해양경찰청)
 const JEJU2027_EMOJI = "⏳";
 const LEISURE_NOW_EMOJI = "🚫";
 const JEJU_TYPE_COLOR: Record<string, string> = { national: "#e2483d", local: "#d9a441", village: "#6fb8b0" };
-function leisureColor(z: LeisureZone) {
-  return z.bannedDevices.includes("모든") ? "#e2483d" : "#d9a441";
+
+// 이 앱의 목적은 "동력수상레저기구(제트스키·모터보트 등) 이용 허가" 문제가 아니라,
+// 맨몸으로 하는 스킨 해루질(스노클링·워킹 포함)이 걸릴 수 있는 구역을 보여주는 것.
+// 그래서 "동력○○만" 금지된 구역(모터 달린 기구만 문제 삼음)은 제외하고, 사람이
+// 직접 하는 활동도 포함될 수 있는 구역만 남긴다 — 문구가 불분명하거나 비어 있으면
+// 과소평가보다 안전하게 "관련 있음"으로 취급한다.
+function isSkinDivingRelevant(bannedDevices: string): boolean {
+  const text = bannedDevices.trim();
+  if (!text) return true;
+  const powerOnly = text.includes("동력") && !text.includes("모든") && !text.includes("무동력");
+  return !powerOnly;
+}
+
+function leisureColor(z: LeisureZone): string {
+  const text = z.bannedDevices.trim();
+  // "무동력"(비동력) 금지는 사람이 직접 하는 활동을 정확히 겨냥한 표현이라 "모든"
+  // 금지와 똑같이 위험(빨강)으로 본다. 문구가 없을 때도 안전하게 빨강으로 취급.
+  if (!text) return "#e2483d";
+  return text.includes("모든") || text.includes("무동력") ? "#e2483d" : "#d9a441";
 }
 
 type Category = "all" | "jeju2027" | "leisureNow";
@@ -98,9 +115,18 @@ type Row =
 
 export default function RestrictedZonesScreen() {
   const { zones: jejuZones, loading: jejuLoading, error: jejuError } = useNoEntryZones();
-  const { zones: leisureZones, loading: leisureLoading, error: leisureError } = useLeisureZones();
+  const { zones: leisureZonesRaw, loading: leisureLoading, error: leisureError } = useLeisureZones();
   const loading = jejuLoading || leisureLoading;
   const error = jejuError ?? leisureError;
+
+  // 동력기구 전용 금지 구역(모터보트·제트스키 등)은 맨몸 스킨 해루질과 무관하므로
+  // 걸러낸다 — 이 화면은 "레저기구 허가 문제"가 아니라 "스킨 해루질 시 걸릴 수 있는
+  // 구역"을 보여주는 게 목적.
+  const leisureZones = useMemo(
+    () => leisureZonesRaw.filter((z) => isSkinDivingRelevant(z.bannedDevices)),
+    [leisureZonesRaw],
+  );
+  const excludedPowerOnlyCount = leisureZonesRaw.length - leisureZones.length;
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category>("all");
@@ -142,10 +168,11 @@ export default function RestrictedZonesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🚫 입수·레저 금지구역</Text>
+        <Text style={styles.title}>🚫 스킨 해루질 금지구역</Text>
         {!loading && !error && (
           <Text style={styles.subtitle}>
             제주 예정 {jejuCount}곳 · 전국 현재 {leisureCount}곳
+            {excludedPowerOnlyCount > 0 ? ` (동력기구 전용 금지 ${excludedPowerOnlyCount}곳 제외)` : ""}
           </Text>
         )}
       </View>
@@ -154,7 +181,8 @@ export default function RestrictedZonesScreen() {
         <Text style={styles.disclaimerText}>
           <Text style={{ fontWeight: "700" }}>{JEJU2027_EMOJI} 모래시계(청록/금/빨강)</Text> = 제주, 2027.4.22부터 시행 예정(어촌·어항법) · {" "}
           <Text style={{ fontWeight: "700" }}>{LEISURE_NOW_EMOJI} 금지 표시(빨강/금)</Text> = 전국, 지금 시행 중(수상레저안전법·해양경찰청).
-          서로 다른 법이니 헷갈리지 마세요.
+          서로 다른 법이니 헷갈리지 마세요. 제트스키·모터보트 같은{" "}
+          <Text style={{ fontWeight: "700" }}>동력기구 전용 금지 구역은 스킨 해루질과 무관해 목록에서 뺐습니다.</Text>
         </Text>
       </View>
 

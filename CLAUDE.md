@@ -1,7 +1,12 @@
 # 이 프로젝트 전용 규칙 (haerujil-app)
 
 `jeju-harbor-map`(https://github.com/kjj8422-code/jeju-harbor-map)의 후속 프로젝트로,
-제주 한정이었던 서비스를 **전국 항·포구 대상 스마트폰 앱**으로 확장한다.
+제주 한정이었던 서비스를 **야간 해루질(맨몸 스킨 다이빙·물놀이 채집) 참가자의 법규
+준수를 돕는 전국 대상 스마트폰 앱**으로 확장한다.
+
+**핵심 목적은 "항·포구 안내"가 아니라 "법 위반 방지"** — 전국 항·포구 목록/지도 기능은
+2026-09-13에 제거했다(아래 "제거한 기능" 참고). 금어기·금지체장, 입수·레저 금지구역,
+안전관리요원 정보처럼 **법적으로 걸릴 수 있는지**를 확인하는 화면들이 앱의 전부다.
 
 ## 확정된 기술 스택 (2026-09-13 결정)
 
@@ -9,16 +14,24 @@
 |---|---|---|
 | 앱 프론트엔드 | **React Native + Expo** | 빌드 환경(Xcode/Android Studio) 없이 QR코드로 바로 폰에서 테스트 가능. 코딩 초보자가 "진짜 앱"까지 갈 수 있는 현실적인 경로. |
 | 백엔드/DB | **Firebase (Firestore + Auth + Cloud Messaging)** | 서버 직접 관리 불필요, 무료 티어로 시작 가능, 로그인·실시간 DB·푸시알림을 하나의 콘솔에서 처리. |
-| 전국 항·포구 데이터 자동 수집 | **공공데이터포털(data.go.kr) API + GitHub Actions 스케줄러** | `jeju-harbor-map`의 `law-watch/` 자동 감시 방식을 그대로 재사용. 매일/매주 배치로 Firestore에 반영. |
 | 광고 수익화 | **Google AdMob** (앱 버전 애드센스) | |
 | 제휴 수익화 | **쿠팡파트너스** (기존 jeju-harbor-map 링크 재사용, `Linking.openURL`로 브라우저 이동) | |
 
 ## 데이터 출처
 
-- 기본 데이터: [해양수산부_어항정보](https://www.data.go.kr/data/3083027/fileData.do) — 어항명, 주소, 위도/경도, 이용 가구·인구수
-- 국가어항 공간정보: [해양수산부_공동활용체계_국가어항](https://www.data.go.kr/data/15149006/fileData.do)
-- 교차 확인: [한국어촌어항공단(fipa.or.kr) 국가어항/지방어항 현황](https://www.fipa.or.kr/fipa/pgm/i-152/nat/front/list.do)
 - 법령·금어기 등 "해석이 필요한 정보"는 자동 수집하지 않고 `jeju-harbor-map`처럼 사람이 직접 확인 후 반영한다 (안전 문제와 직결되므로).
+- 상세 컬렉션별 출처는 [`docs/DATA_DESIGN.md`](docs/DATA_DESIGN.md) 참고.
+
+## 제거한 기능: 전국 항·포구 목록·지도 (2026-09-13)
+
+`harbors` 컬렉션(공공데이터포털 어항정보 API, 국가어항 113곳)과 이를 보여주던
+`HarborListScreen`/`HarborMapScreen`, 동기화 스크립트(`pipeline/sync-harbors.mjs`)와
+GitHub Actions 워크플로를 전부 삭제했다 — 이 앱의 목적은 "항구 안내"가 아니라 "법
+위반 방지"이고, 항구 자체 정보(주소·어업가구 수 등)는 그 목적과 무관하다는 판단.
+Firestore의 실제 `harbors` 컬렉션 데이터와 `firestore.rules`의 해당 규칙 삭제분은
+Firebase 콘솔에 재적용이 필요하다(기존 문서는 그대로 남아있어도 앱이 더 이상 읽지
+않으니 당장 위험하진 않음). 나중에 "이 항구에서 CCTV 확인" 같은 기능이 다시 필요하면
+`RestrictedZonesScreen`의 구역 카드처럼 필요한 화면에 국한해서 추가하는 편이 낫다.
 
 ## 왜 jeju-harbor-map과 저장소를 분리했나
 

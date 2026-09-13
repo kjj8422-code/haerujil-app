@@ -8,13 +8,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 항·포구 정보: 누구나 읽을 수 있지만, 앱에서 직접 쓰지는 못한다.
-    // (공공데이터 자동 수집 파이프라인은 서버 키로 접근하므로 이 규칙의 영향을 받지 않는다)
-    match /harbors/{harborId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
     // 금어기·금지체장 규정: 누구나 읽기만, 쓰기는 관리자가 콘솔에서 직접.
     match /rules/{speciesId} {
       allow read: if true;

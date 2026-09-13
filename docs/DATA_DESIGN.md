@@ -12,43 +12,13 @@ Firestore는 "폴더 안에 폴더가 있고, 그 안에 문서가 있는" 구�
 
 ## 컬렉션 구조
 
-### 1. `harbors` (항·포구 정보) — 공공데이터 API가 자동으로 채움
+### 1. ~~`harbors` (항·포구 정보)~~ — 2026-09-13 기능 자체를 제거함
 
-```
-harbors/{harborId}
-├─ name: string            // "다미포항"
-├─ type: string            // "미분류" — 이 API엔 국가/지방/정주 분류가 없음 (아래 "알게 된 것" 참고)
-├─ region: string          // "부산광역시" — 어항주소 앞부분에서 추출, 필터링용
-├─ address: string         // "부산광역시 사하구 다대로605번길 67"
-├─ lat: number             // 위도 (API의 "위도", 문자열 → 숫자 변환)
-├─ lng: number             // 경도 (API의 "경도", 문자열 → 숫자 변환)
-├─ fishingHouseholds: number | null   // 어업가구 (API "어업가구")
-├─ totalPopulation: number | null     // 전체인구 (API "전체인구")
-├─ source: string          // "data.go.kr 해양수산부_어항정보(3083027)"
-└─ syncedAt: timestamp     // 우리 쪽 마지막 동기화 시각
-```
-
-`jeju-harbor-map`의 `const DATA = [...]` 배열 46개 항목이 이 구조의 "제주 지역만 있는
-축소판"입니다. 전국 확장은 이 컬렉션에 수천 개 문서가 쌓이는 것뿐, 구조는 동일합니다.
-
-**실제 API 호출로 알게 된 것 (2026-09-13, data.go.kr 어항정보 API 실제 응답 확인)**
-- Base URL: `https://api.odcloud.kr/api`
-- 엔드포인트: `/3083027/v1/uddi:1951cefd-22ba-4573-b64c-e0f8a1af0a23_201909101333`
-- 인증: 쿼리 파라미터 `serviceKey`
-- 페이지네이션: `page`, `perPage` (응답의 `totalCount`로 전체 페이지 계산)
-- 원본 필드(한글): `어항명, 어항주소, 위도, 경도, 어촌계명, 어업가구, 배후어업인구,
-  전체가구, 전체인구, 인근어항명, 인근어항과의거리, 인근어항항종, 연도`
-- **이 어항 자체의 "국가어항/지방어항" 분류는 이 API에 없음** — `인근어항항종`은 "이웃
-  어항"의 분류일 뿐, 이 항목이 자기 자신의 분류는 아니다. 분류가 필요해지면(2단계 이후)
-  한국어촌어항공단(fipa.or.kr) 목록과 이름 매칭으로 보강 예정. 지금은 `type: "미분류"`로 채움.
-- **실제 동기화 결과 총 113건** — 전국 어항 전체(지방어항·어촌정주어항·소규모포구 포함
-  수천 곳)가 아니라, **"국가어항"(전국 약 115개소, 2021년 기준)만 담긴 데이터셋으로
-  추정됨** (2026-09-13 확인). 근거: 미리보기 샘플에 다대포항·천성항·대변항 등 잘 알려진
-  국가어항만 등장, 개수(113)도 국가어항 전체 개수(115)와 거의 일치. **다음 확장 과제**:
-  지방어항·어촌정주어항을 포함하려면 별도 공공데이터셋을 찾아 파이프라인에 추가해야 함
-  (fipa.or.kr의 지방어항/정주어항 목록이 후보 — 다만 이쪽은 오픈API가 없을 수 있어
-  스크래핑 또는 수동 보강이 필요할 수 있음). 지금 113곳은 "핵심 대형 항구 위주 1차
-  MVP"로 취급한다.
+한때 공공데이터 API로 국가어항 113곳을 자동 수집해 `HarborListScreen`/`HarborMapScreen`
+으로 보여줬으나, "항구 안내"는 이 앱의 목적(법 위반 방지)과 무관하다는 판단으로 화면과
+동기화 파이프라인을 전부 삭제했다(자세한 이유는 `CLAUDE.md`의 "제거한 기능" 참고).
+Firestore의 `harbors` 컬렉션 문서 자체는 지우지 않았지만 앱이 더 이상 읽지 않는다 —
+정리하려면 Firebase 콘솔에서 컬렉션을 수동 삭제하면 된다.
 
 ### 2. `rules` (금어기·금지체장) — jeju-harbor-map에서 자동 동기화 (사람이 직접 입력 안 함)
 
@@ -120,7 +90,7 @@ safety_orgs/{recognitionNo}
 - `pipeline/sync-legal-data.mjs`가 `https://raw.githubusercontent.com/kjj8422-code/
   jeju-harbor-map/main/index.html`을 그대로 fetch → 텍스트에서 `const RULES = [...]` 같은
   블록을 잘라내 JS 값으로 변환 → Firestore에 반영.
-- `.github/workflows/sync-legal-data.yml`이 매일 자동 실행 (harbors 동기화 직후).
+- `.github/workflows/sync-legal-data.yml`이 매일 자동 실행.
 - 즉, **`jeju-harbor-map`에서 법이 바뀌어 값을 고치고 git push하면, 다음날 이 앱에도
   자동으로 반영된다** — 앱 스토어 재배포가 필요 없다.
 - 한계: 지금은 **제주 데이터만** 있음(입수금지구역 69곳은 애초에 제주 한정 규정). 다른
@@ -134,8 +104,8 @@ safety_orgs/{recognitionNo}
 타일이 API 키 없이는 안 보이고, 그 키는 Expo Go가 아닌 커스텀 개발 빌드(EAS Build)
 에서만 적용된다는 한계**에 부딪혔다. 대신 `react-native-webview` 안에서 **카카오맵
 JavaScript SDK**를 그대로 돌리는 방식으로 교체했다 — Expo Go에서 별도 빌드 없이 바로
-된다. `mobile/src/components/KakaoMapView.tsx`가 이 로직을 담당하고, `harbors`(전국
-113곳)와 `jeju_no_entry_zones`(제주 69곳) 화면 둘 다 여기서 재사용한다.
+된다. `mobile/src/components/KakaoMapView.tsx`가 이 로직을 담당하고, `RestrictedZonesScreen`
+(제주 69곳 + 전국 스킨 해루질 금지구역)에서 재사용한다.
 
 **카카오 개발자 콘솔 설정 (한 번만 하면 됨)**:
 1. developers.kakao.com에서 앱 생성 → "플랫폼 키"에서 JavaScript 키, REST API 키 확인
@@ -231,6 +201,16 @@ leisure_restricted_zones/{zoneId}
 어촌·어항법 개정에 따라 **2027.4.22부터** 시행 예정인 별개 규정. 두 데이터를 혼동하지
 않도록 앱에서도 `jeju_no_entry_zones`(⏳)와 `leisure_restricted_zones`(🚫)를 한
 화면(`RestrictedZonesScreen`, 탭 "🚫 금지구역")에서 이모지와 색으로 구분해 같이 보여준다.
+
+**"동력기구 전용" 금지 구역은 화면에서 제외 (2026-09-13)**: 213개소 중 `bannedDevices`가
+순수하게 "동력○○기구"만 언급하는 구역(제트스키·모터보트 등)은 `RestrictedZonesScreen`에
+표시하지 않는다 — 이 앱의 목적은 레저기구 허가 문제가 아니라 **맨몸 스킨 해루질(스노클링·
+워킹 포함)이 걸릴 수 있는 구역**을 보여주는 것이라, 동력기구만 금지된 곳은 관련이 없기
+때문. 반대로 "모든 수상레저기구" 금지나 "무동력 수상레저기구"(비동력, 사람이 직접 하는
+활동을 정확히 겨냥) 금지는 스킨 해루질에도 적용될 수 있어 포함한다. 문구가 비어 있거나
+애매한 경우도 과소평가보다 안전하게 "포함"으로 처리한다 — 필터 로직은
+`RestrictedZonesScreen.tsx`의 `isSkinDivingRelevant()` 참고. 이 필터링으로 213개소 중
+약 46개소만 화면에 남는다(제외된 곳은 화면 상단에 개수로 안내).
 
 **미수집: 내수면(강·호수·저수지·댐) 금지구역** — 사용자가 준 엑셀 중
 "(내수면)수상레저활동 금지구역 지정현황(2024년 기준)" 51개소 시트는 아직 파싱해서
