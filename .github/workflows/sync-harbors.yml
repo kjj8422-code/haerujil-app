@@ -1,0 +1,28 @@
+name: 전국 어항 데이터 자동 동기화
+
+on:
+  schedule:
+    # 매일 새벽 4시(KST) = UTC 19:00 (전날)
+    - cron: "0 19 * * *"
+  workflow_dispatch: {} # Actions 탭에서 "Run workflow"로 수동 실행도 가능
+
+jobs:
+  sync-harbors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 의존성 설치
+        working-directory: pipeline
+        run: npm install
+
+      - name: 데이터 동기화 실행
+        working-directory: pipeline
+        env:
+          ODCLOUD_SERVICE_KEY: ${{ secrets.ODCLOUD_SERVICE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node sync-harbors.mjs

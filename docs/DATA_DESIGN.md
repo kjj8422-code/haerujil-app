@@ -16,21 +16,33 @@ Firestore는 "폴더 안에 폴더가 있고, 그 안에 문서가 있는" 구�
 
 ```
 harbors/{harborId}
-├─ name: string            // "성산포항"
-├─ type: string            // "국가어항" | "지방어항" | "어촌정주어항" | "소규모포구"
-├─ region: string          // "제주특별자치도" — 시/도 단위, 필터링용
-├─ address: string
-├─ lat: number             // 위도
-├─ lng: number             // 경도
+├─ name: string            // "다미포항"
+├─ type: string            // "미분류" — 이 API엔 국가/지방/정주 분류가 없음 (아래 "알게 된 것" 참고)
+├─ region: string          // "부산광역시" — 어항주소 앞부분에서 추출, 필터링용
+├─ address: string         // "부산광역시 사하구 다대로605번길 67"
+├─ lat: number             // 위도 (API의 "위도", 문자열 → 숫자 변환)
+├─ lng: number             // 경도 (API의 "경도", 문자열 → 숫자 변환)
+├─ fishingHouseholds: number | null   // 어업가구 (API "어업가구")
+├─ totalPopulation: number | null     // 전체인구 (API "전체인구")
 ├─ coastGuardContact: string | null   // 관할 해양경찰 연락처 (사람이 직접 채움)
 ├─ noEntryZone: boolean    // 입수 금지구역 여부 (사람이 직접 확인 후 채움 — 법령 해석 필요)
-├─ source: string          // "data.go.kr 해양수산부_어항정보"
-├─ sourceUpdatedAt: timestamp  // 공공데이터 원본 기준일
+├─ source: string          // "data.go.kr 해양수산부_어항정보(3083027)"
 └─ syncedAt: timestamp     // 우리 쪽 마지막 동기화 시각
 ```
 
 `jeju-harbor-map`의 `const DATA = [...]` 배열 46개 항목이 이 구조의 "제주 지역만 있는
 축소판"입니다. 전국 확장은 이 컬렉션에 수천 개 문서가 쌓이는 것뿐, 구조는 동일합니다.
+
+**실제 API 호출로 알게 된 것 (2026-09-13, data.go.kr 어항정보 API 실제 응답 확인)**
+- Base URL: `https://api.odcloud.kr/api`
+- 엔드포인트: `/3083027/v1/uddi:1951cefd-22ba-4573-b64c-e0f8a1af0a23_201909101333`
+- 인증: 쿼리 파라미터 `serviceKey`
+- 페이지네이션: `page`, `perPage` (응답의 `totalCount`로 전체 페이지 계산)
+- 원본 필드(한글): `어항명, 어항주소, 위도, 경도, 어촌계명, 어업가구, 배후어업인구,
+  전체가구, 전체인구, 인근어항명, 인근어항과의거리, 인근어항항종, 연도`
+- **이 어항 자체의 "국가어항/지방어항" 분류는 이 API에 없음** — `인근어항항종`은 "이웃
+  어항"의 분류일 뿐, 이 항목이 자기 자신의 분류는 아니다. 분류가 필요해지면(2단계 이후)
+  한국어촌어항공단(fipa.or.kr) 목록과 이름 매칭으로 보강 예정. 지금은 `type: "미분류"`로 채움.
 
 ### 2. `rules` (금어기·금지체장) — 당분간은 사람이 직접 입력 (전국 공통 + 지역 특례)
 

@@ -1,0 +1,8 @@
+# 루트 공통 규칙 — mobile/ 폴더는 자체 .gitignore를 따로 가진다.
+node_modules/
+
+# Firebase 서비스 계정 키 등, 실수로라도 절대 커밋되면 안 되는 비밀 파일들.
+# (실제 값은 GitHub Actions Secrets로만 주입한다 — pipeline/sync-harbors.mjs 참고)
+*service-account*.json
+.env
+.env.*
