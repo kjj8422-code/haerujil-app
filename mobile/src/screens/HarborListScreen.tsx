@@ -1,13 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { type Harbor, useHarbors } from "../hooks/useHarbors";
 
 function HarborCard({ harbor }: { harbor: Harbor }) {
@@ -44,7 +36,7 @@ export default function HarborListScreen() {
   }, [harbors, query]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>🎣 전국 항·포구</Text>
         {!loading && !error && (
@@ -97,7 +89,7 @@ export default function HarborListScreen() {
           windowSize={7}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
