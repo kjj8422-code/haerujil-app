@@ -10,20 +10,59 @@ import {
 } from "react-native";
 import LawChangesSection from "../components/LawChangesSection";
 import { CATEGORY_LABEL, type Rule, useRules } from "../hooks/useRules";
+import { getSeasonStatus, type SeasonStatus } from "../utils/seasonStatus";
 import { stripHtml } from "../utils/stripHtml";
 
 const CATEGORIES = ["전체", ...Object.keys(CATEGORY_LABEL)];
 
-function RuleCard({ rule }: { rule: Rule }) {
+// 상태별로 "지금 당장 신경 써야 하는 순서"를 매긴다 — 위험한 것부터 위에 뜨게.
+function priority(status: SeasonStatus): number {
+  switch (status.kind) {
+    case "year-round-ban":
+      return 0;
+    case "banned-now":
+      return status.confident ? 1 : 2;
+    case "unknown":
+      return 3;
+    case "open-now":
+      return status.confident ? 5 : 4;
+    case "no-season":
+      return 6;
+  }
+}
+
+function StatusBadge({ status }: { status: SeasonStatus }) {
+  switch (status.kind) {
+    case "year-round-ban":
+      return <Text style={[styles.statusBadge, styles.statusDanger]}>🔴 상시 포획금지</Text>;
+    case "banned-now":
+      return (
+        <Text style={[styles.statusBadge, styles.statusDanger]}>
+          🔴 지금 금어기{!status.confident && " (예외조건 확인)"}
+        </Text>
+      );
+    case "open-now":
+      return (
+        <Text style={[styles.statusBadge, styles.statusSafe]}>
+          🟢 지금 포획 가능{!status.confident && " (예외조건 확인)"}
+        </Text>
+      );
+    case "unknown":
+      return <Text style={[styles.statusBadge, styles.statusWarn]}>❓ 원문 직접확인</Text>;
+    case "no-season":
+      return <Text style={[styles.statusBadge, styles.statusNeutral]}>📏 체장만 규정</Text>;
+  }
+}
+
+function RuleCard({ rule, status }: { rule: Rule; status: SeasonStatus }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.speciesName}>{rule.species}</Text>
-        <View style={styles.badgeRow}>
-          {rule.jejuSpecific && <Text style={styles.jejuBadge}>제주 별도기준</Text>}
-          <Text style={styles.categoryBadge}>{CATEGORY_LABEL[rule.category] ?? rule.category}</Text>
-        </View>
+        {rule.jejuSpecific && <Text style={styles.jejuBadge}>제주 별도기준</Text>}
       </View>
+
+      <StatusBadge status={status} />
 
       <View style={styles.row}>
         <Text style={styles.label}>🚫 금어기</Text>
@@ -32,6 +71,10 @@ function RuleCard({ rule }: { rule: Rule }) {
       <View style={styles.row}>
         <Text style={styles.label}>📏 금지체장</Text>
         <Text style={styles.value}>{rule.minSize}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>🏷️ 분류</Text>
+        <Text style={styles.value}>{CATEGORY_LABEL[rule.category] ?? rule.category}</Text>
       </View>
 
       {rule.note && <Text style={styles.note}>{stripHtml(rule.note)}</Text>}
@@ -42,34 +85,71 @@ function RuleCard({ rule }: { rule: Rule }) {
   );
 }
 
+const STATUS_FILTERS = [
+  { key: "all", label: "전체" },
+  { key: "danger", label: "🔴 지금 위험" },
+  { key: "unknown", label: "❓ 확인필요" },
+  { key: "safe", label: "🟢 지금 가능" },
+] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number]["key"];
+
+function matchesStatusFilter(status: SeasonStatus, filter: StatusFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "danger") return status.kind === "year-round-ban" || status.kind === "banned-now";
+  if (filter === "unknown") return status.kind === "unknown";
+  if (filter === "safe") return status.kind === "open-now" || status.kind === "no-season";
+  return true;
+}
+
 export default function RulesScreen() {
   const { rules, loading, error } = useRules();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("전체");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // 오늘 날짜 기준 상태를 한 번만 계산해서 재사용한다 (검색/필터가 바뀔 때마다 다시
+  // 계산할 필요 없음 — rules 배열 자체가 안 바뀌는 한 그대로 쓴다).
+  const withStatus = useMemo(
+    () => rules.map((r) => ({ rule: r, status: getSeasonStatus(r.banPeriod) })),
+    [rules],
+  );
+
+  const dangerCount = useMemo(
+    () => withStatus.filter((x) => x.status.kind === "year-round-ban" || x.status.kind === "banned-now").length,
+    [withStatus],
+  );
 
   const filtered = useMemo(() => {
-    let list = rules;
-    if (category !== "전체") list = list.filter((r) => r.category === category);
+    let list = withStatus;
+    if (category !== "전체") list = list.filter((x) => x.rule.category === category);
+    if (statusFilter !== "all") list = list.filter((x) => matchesStatusFilter(x.status, statusFilter));
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter((r) => r.species.toLowerCase().includes(q));
-    return list;
-  }, [rules, query, category]);
+    if (q) list = list.filter((x) => x.rule.species.toLowerCase().includes(q));
+    return [...list].sort((a, b) => priority(a.status) - priority(b.status));
+  }, [withStatus, query, category, statusFilter]);
+
+  const today = new Date();
+  const todayLabel = `${today.getMonth() + 1}.${today.getDate()}`;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>🐟 금어기·금지체장</Text>
-        {!loading && !error && <Text style={styles.subtitle}>총 {rules.length}종</Text>}
+        {!loading && !error && (
+          <Text style={styles.subtitle}>
+            총 {rules.length}종 · 오늘({todayLabel}) 기준 위험 {dangerCount}종
+          </Text>
+        )}
       </View>
 
       <LawChangesSection />
 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerText}>
-          ⚠️ 아래 기간·체장은 <Text style={{ fontWeight: "700" }}>전국 기본 기준</Text>이며,
-          일부 어종은 지역·어법별 예외·유예가 있습니다. 실제 단속 기준은 반드시{" "}
+          ⚠️ 배지의 "지금 금어기/가능"은 <Text style={{ fontWeight: "700" }}>전국 기본 기준</Text>으로
+          자동 계산한 것이며, 지역·어법별 예외가 있는 어종은 "(예외조건 확인)"이 붙습니다.
+          실제 단속 기준은 반드시{" "}
           <Text style={{ fontWeight: "700" }}>국가법령정보센터(law.go.kr)</Text> 원문으로 재확인하세요.
-          이 정보는 매일 자동 갱신됩니다.
         </Text>
       </View>
 
@@ -85,18 +165,37 @@ export default function RulesScreen() {
 
       <FlatList
         horizontal
-        data={CATEGORIES}
-        keyExtractor={(item) => item}
+        data={STATUS_FILTERS}
+        keyExtractor={(item) => item.key}
         showsHorizontalScrollIndicator={false}
         style={styles.chipRow}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         renderItem={({ item }) => (
           <Pressable
-            style={[styles.chip, category === item && styles.chipActive]}
+            style={[styles.chip, statusFilter === item.key && styles.chipActive]}
+            onPress={() => setStatusFilter(item.key)}
+          >
+            <Text style={[styles.chipLabel, statusFilter === item.key && styles.chipLabelActive]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        )}
+      />
+
+      <FlatList
+        horizontal
+        data={CATEGORIES}
+        keyExtractor={(item) => item}
+        showsHorizontalScrollIndicator={false}
+        style={[styles.chipRow, { marginTop: 6 }]}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        renderItem={({ item }) => (
+          <Pressable
+            style={[styles.chipSmall, category === item && styles.chipActive]}
             onPress={() => setCategory(item)}
           >
-            <Text style={[styles.chipLabel, category === item && styles.chipLabelActive]}>
-              {item === "전체" ? "전체" : CATEGORY_LABEL[item]}
+            <Text style={[styles.chipLabelSmall, category === item && styles.chipLabelActive]}>
+              {item === "전체" ? "전체 분류" : CATEGORY_LABEL[item]}
             </Text>
           </Pressable>
         )}
@@ -119,8 +218,8 @@ export default function RulesScreen() {
       {!loading && !error && (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <RuleCard rule={item} />}
+          keyExtractor={(item) => item.rule.id}
+          renderItem={({ item }) => <RuleCard rule={item.rule} status={item.status} />}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={<Text style={styles.meta}>검색 결과가 없습니다</Text>}
         />
@@ -161,8 +260,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#f0f0f0",
   },
+  chipSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    backgroundColor: "#f5f5f5",
+  },
   chipActive: { backgroundColor: "#0a7a3d" },
   chipLabel: { fontSize: 13, color: "#555" },
+  chipLabelSmall: { fontSize: 11.5, color: "#777" },
   chipLabelActive: { color: "#fff", fontWeight: "700" },
   centerBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 },
   meta: { fontSize: 13, color: "#888" },
@@ -177,16 +283,6 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 4 },
   speciesName: { fontSize: 16, fontWeight: "700" },
-  badgeRow: { flexDirection: "row", gap: 6 },
-  categoryBadge: {
-    fontSize: 11,
-    color: "#555",
-    backgroundColor: "#eee",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
   jejuBadge: {
     fontSize: 11,
     color: "#0a7a3d",
@@ -196,6 +292,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
+  statusBadge: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    fontSize: 12.5,
+    fontWeight: "700",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  statusDanger: { backgroundColor: "#e2483d", color: "#fff" },
+  statusSafe: { backgroundColor: "#e6f6ec", color: "#0a7a3d" },
+  statusWarn: { backgroundColor: "#fff3d9", color: "#8a5a00" },
+  statusNeutral: { backgroundColor: "#eee", color: "#555" },
   row: { flexDirection: "row", marginTop: 6, gap: 6, flexWrap: "wrap" },
   label: { fontSize: 12.5, color: "#888", width: 72 },
   value: { fontSize: 13, color: "#222", flex: 1, flexWrap: "wrap" },
