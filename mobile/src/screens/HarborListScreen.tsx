@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import InAppWebViewModal from "../components/InAppWebViewModal";
+import PlaceInfoButtons from "../components/PlaceInfoButtons";
 import { type Harbor, useHarbors } from "../hooks/useHarbors";
+import { usePlaceInfoModal } from "../hooks/usePlaceInfoModal";
 
-function HarborCard({ harbor }: { harbor: Harbor }) {
+function HarborCard({ harbor, onOpen }: { harbor: Harbor; onOpen: (url: string, title: string) => void }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -13,6 +16,7 @@ function HarborCard({ harbor }: { harbor: Harbor }) {
       {harbor.fishingHouseholds !== null && (
         <Text style={styles.meta}>어업가구 {harbor.fishingHouseholds}가구</Text>
       )}
+      <PlaceInfoButtons placeName={harbor.name} onOpen={onOpen} />
     </View>
   );
 }
@@ -20,6 +24,7 @@ function HarborCard({ harbor }: { harbor: Harbor }) {
 export default function HarborListScreen() {
   const { harbors, loading, error } = useHarbors();
   const [query, setQuery] = useState("");
+  const { modalProps, open } = usePlaceInfoModal();
 
   // 이름이나 지역, 주소 중 하나라도 검색어를 포함하면 결과에 남긴다.
   // (jeju-harbor-map의 지도 탭 검색창과 같은 방식 — 항구가 몇천 개라도
@@ -81,7 +86,7 @@ export default function HarborListScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <HarborCard harbor={item} />}
+          renderItem={({ item }) => <HarborCard harbor={item} onOpen={open} />}
           contentContainerStyle={styles.listContent}
           // 몇천 건이 될 수 있으니 초기 렌더 개수를 제한해 스크롤 시작이 버벅이지 않게 한다.
           initialNumToRender={20}
@@ -89,6 +94,8 @@ export default function HarborListScreen() {
           windowSize={7}
         />
       )}
+
+      <InAppWebViewModal {...modalProps} />
     </View>
   );
 }

@@ -9,9 +9,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import InAppWebViewModal from "../components/InAppWebViewModal";
 import KakaoMapView, { type MapMarker } from "../components/KakaoMapView";
+import PlaceInfoButtons from "../components/PlaceInfoButtons";
 import { type LeisureZone, useLeisureZones } from "../hooks/useLeisureZones";
 import { type NoEntryZone, useNoEntryZones } from "../hooks/useNoEntryZones";
+import { usePlaceInfoModal } from "../hooks/usePlaceInfoModal";
 
 // 두 규정을 한 화면에서 같이 보여주되, 절대 섞여 보이지 않도록 이모지와
 // 색을 분명히 다르게 쓴다. 세모/동그라미보다 귀엽고 한눈에 뜻도 더 잘 통한다.
@@ -26,7 +29,9 @@ function leisureColor(z: LeisureZone) {
 
 type Category = "all" | "jeju2027" | "leisureNow";
 
-function Jeju2027Card({ zone }: { zone: NoEntryZone }) {
+type CardProps<Z> = { zone: Z; onOpen: (url: string, title: string) => void };
+
+function Jeju2027Card({ zone, onOpen }: CardProps<NoEntryZone>) {
   const call = () => {
     if (zone.coastGuardPhone) Linking.openURL(`tel:${zone.coastGuardPhone}`);
   };
@@ -44,11 +49,12 @@ function Jeju2027Card({ zone }: { zone: NoEntryZone }) {
           <Text style={styles.callHint}>탭하면 바로 전화</Text>
         </Pressable>
       )}
+      <PlaceInfoButtons placeName={zone.name} onOpen={onOpen} />
     </View>
   );
 }
 
-function LeisureNowCard({ zone }: { zone: LeisureZone }) {
+function LeisureNowCard({ zone, onOpen }: CardProps<LeisureZone>) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={styles.card}>
@@ -81,6 +87,7 @@ function LeisureNowCard({ zone }: { zone: LeisureZone }) {
         </Text>
         <Text style={styles.expandHint}>{expanded ? "접기 ▲" : "더보기 ▼"}</Text>
       </Pressable>
+      <PlaceInfoButtons placeName={zone.placeName} onOpen={onOpen} />
     </View>
   );
 }
@@ -99,6 +106,7 @@ export default function RestrictedZonesScreen() {
   const [category, setCategory] = useState<Category>("all");
   const [viewMode, setViewMode] = useState<"list" | "map">("map");
   const [selected, setSelected] = useState<Row | null>(null);
+  const { modalProps, open } = usePlaceInfoModal();
 
   const rows: Row[] = useMemo(() => {
     const a: Row[] = jejuZones.map((z) => ({ kind: "jeju2027", id: z.id, name: z.name, sortKey: z.name, zone: z }));
@@ -218,7 +226,11 @@ export default function RestrictedZonesScreen() {
           data={filtered}
           keyExtractor={(item) => `${item.kind}_${item.id}`}
           renderItem={({ item }) =>
-            item.kind === "jeju2027" ? <Jeju2027Card zone={item.zone} /> : <LeisureNowCard zone={item.zone} />
+            item.kind === "jeju2027" ? (
+              <Jeju2027Card zone={item.zone} onOpen={open} />
+            ) : (
+              <LeisureNowCard zone={item.zone} onOpen={open} />
+            )
           }
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={<Text style={styles.meta}>검색 결과가 없습니다</Text>}
@@ -243,14 +255,16 @@ export default function RestrictedZonesScreen() {
           {selected && (
             <View style={styles.floatingCard}>
               {selected.kind === "jeju2027" ? (
-                <Jeju2027Card zone={selected.zone} />
+                <Jeju2027Card zone={selected.zone} onOpen={open} />
               ) : (
-                <LeisureNowCard zone={selected.zone} />
+                <LeisureNowCard zone={selected.zone} onOpen={open} />
               )}
             </View>
           )}
         </View>
       )}
+
+      <InAppWebViewModal {...modalProps} />
     </View>
   );
 }

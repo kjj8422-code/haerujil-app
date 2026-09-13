@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import InAppWebViewModal from "../components/InAppWebViewModal";
 import KakaoMapView, { type MapMarker } from "../components/KakaoMapView";
+import PlaceInfoButtons from "../components/PlaceInfoButtons";
 import { type Harbor, useHarbors } from "../hooks/useHarbors";
+import { usePlaceInfoModal } from "../hooks/usePlaceInfoModal";
 
 export default function HarborMapScreen() {
   const { harbors, loading, error } = useHarbors();
   const [selected, setSelected] = useState<Harbor | null>(null);
+  const { modalProps, open } = usePlaceInfoModal();
 
   const markers: MapMarker[] = useMemo(
     () =>
@@ -58,10 +62,13 @@ export default function HarborMapScreen() {
               {selected.fishingHouseholds !== null && (
                 <Text style={styles.detailMeta}>어업가구 {selected.fishingHouseholds}가구</Text>
               )}
+              <PlaceInfoButtons placeName={selected.name} onOpen={open} />
             </View>
           )}
         </View>
       )}
+
+      <InAppWebViewModal {...modalProps} />
     </View>
   );
 }
