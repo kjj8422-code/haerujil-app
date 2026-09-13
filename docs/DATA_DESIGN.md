@@ -200,3 +200,34 @@ users/{userId}
 제주 데이터는 이미 사람이 검증한 고품질 데이터이므로, 전국 데이터를 자동 수집한 뒤에도
 제주 지역 46곳은 `jeju-harbor-map`의 기존 값(관할 해경 연락처, 금지구역 여부 등)을
 우선 적용하고 공공데이터로 덮어쓰지 않는다. (2단계 파이프라인 설계 시 반영)
+
+## 3. `leisure_restricted_zones` (전국 수상레저활동 금지구역) — 수동 1회 적재 (2026-09-13)
+
+```
+leisure_restricted_zones/{zoneId}
+├─ regionOffice: string     // "제주청" 등 — 지방해양경찰청
+├─ localOffice: string      // "제주서" 등 — 관할 해양경찰서
+├─ placeType: string        // "해수욕장" | "기타지역"
+├─ placeName: string        // 여러 해변이 콤마로 묶여 있을 수 있음(원본 표 형식 그대로)
+├─ banPeriod: string        // "해수욕장 개장기간" | "연중" 등
+├─ areaDescription: string  // 금지구역 세부 범위 설명(좌표 나열 포함, 길 수 있음)
+├─ bannedDevices: string    // "모든 수상레저기구" | "동력수상레저기구" 등
+├─ lat, lng: number | null  // areaDescription의 첫 DMS 좌표를 디코드(파싱 실패 시 null)
+├─ isJeju: boolean          // regionOffice === "제주청"
+├─ source: string
+└─ syncedAt: timestamp
+```
+
+**출처와 갱신 방법**: `jeju-harbor-map`의 RULES/DATA와 달리, 이 데이터는 사용자가
+해양경찰청에서 직접 받은 엑셀("수상레저활동 금지구역 지정현황", 2025.08.20 기준,
+전국 213개소)을 `pipeline/data/leisure_zones.json`으로 한 번 정리해 커밋해둔 것이다.
+재발행되는 라이브 URL이 없어서 매일 자동 동기화는 안 되고, `seed-leisure-zones.mjs`를
+**수동으로**(`.github/workflows/seed-leisure-zones.yml`, workflow_dispatch) 실행해야
+반영된다. 새 엑셀이 나오면: 같은 방식으로 파싱해 JSON을 다시 만들고 → 커밋 → 워크플로
+수동 실행.
+
+**jeju-harbor-map "69곳 입수금지구역"과의 차이**: 이건 완전히 다른 법(수상레저안전법,
+해양경찰청 고시)에 근거한 **지금 당장 적용 중인** 규정이다. jeju-harbor-map 쪽은
+어촌·어항법 개정에 따라 **2027.4.22부터** 시행 예정인 별개 규정. 두 데이터를 혼동하지
+않도록 앱에서도 탭을 분리해뒀다("🚫 제주금지" = 69곳/2027년, "🏖️ 레저금지" = 전국
+213개소/현재 시행중).

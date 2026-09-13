@@ -5,7 +5,8 @@
   "description": "공공데이터포털 어항정보 API를 주기적으로 가져와 Firestore harbors 컬렉션에 동기화하는 스크립트 (GitHub Actions에서 실행)",
   "scripts": {
     "sync-harbors": "node sync-harbors.mjs",
-    "sync-legal-data": "node sync-legal-data.mjs"
+    "sync-legal-data": "node sync-legal-data.mjs",
+    "seed-leisure-zones": "node seed-leisure-zones.mjs"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0"
